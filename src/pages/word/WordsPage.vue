@@ -160,14 +160,17 @@ async function savePracticeSetting() {
 }
 
 async function onShufflePracticeSettingOk(total) {
-  window.umami?.track('startSuffleStudyWord', {
+  window.umami?.track('startShuffleStudyWord', {
     name: store.sdict.name,
     index: store.sdict.lastLearnIndex,
     perDayStudyNumber: store.sdict.perDayStudyNumber,
+    total,
     custom: store.sdict.custom,
     complete: store.sdict.complete,
-    wordPracticeMode: settingStore.wordPracticeMode
   })
+  isSaveData = false
+  localStorage.removeItem(PracticeSaveWordKey.key)
+
   currentStudy.shuffle = shuffle(store.sdict.words).slice(0, total)
   nav('practice-words/' + store.sdict.id, {}, currentStudy)
 }
