@@ -269,6 +269,95 @@ calcWeekList(); // 新增：计算本周学习记录
     </div>
   </Dialog>
 </template>
+<style scoped lang="scss">
+
+// 移动端适配
+@media (max-width: 768px) {
+  // 弹窗容器优化
+  .w-140 {
+    width: 90vw !important;
+    max-width: 500px;
+    padding: 1.5rem !important;
+  }
+
+  // 标题优化
+  .center.text-2xl {
+    font-size: 1.3rem;
+    margin-bottom: 1rem;
+  }
+
+  // 统计数据布局
+  .flex .flex-1 {
+    .text-sm {
+      font-size: 0.8rem;
+    }
+
+    .text-4xl {
+      font-size: 2rem;
+    }
+  }
+
+  // 时间显示
+  .text-xl {
+    font-size: 1rem;
+
+    .text-2xl {
+      font-size: 1.5rem;
+    }
+  }
+
+  // 错词/正确统计卡片
+  .flex.justify-center.gap-10 {
+    gap: 1rem;
+    flex-wrap: wrap;
+
+    > div {
+      padding: 0.8rem 2rem;
+
+      .text-3xl {
+        font-size: 1.8rem;
+      }
+    }
+  }
+
+  // 本周学习记录
+  .flex.gap-4 {
+    gap: 0.5rem;
+
+    .w-8.h-8 {
+      width: 2rem;
+      height: 2rem;
+      font-size: 0.9rem;
+    }
+  }
+
+  // 按钮组
+  .flex.justify-center.gap-4 {
+    flex-direction: column;
+    gap: 0.5rem;
+
+    .base-button {
+      width: 100%;
+      min-height: 48px;
+    }
+  }
+}
+
+@media (max-width: 480px) {
+  .w-140 {
+    width: 95vw !important;
+    padding: 1rem !important;
+  }
+
+  .flex .flex-1 {
+    .text-4xl {
+      font-size: 1.5rem;
+    }
+  }
+}
+
+</style>
+
 
 <style scoped>
 .item {
