@@ -1,8 +1,7 @@
-import { onMounted, onUnmounted, watch, onDeactivated } from "vue";
+import { onDeactivated, onMounted, onUnmounted, watch } from "vue";
 import { emitter, EventKey } from "@/utils/eventBus.ts";
 import { useRuntimeStore } from "@/stores/runtime.ts";
 import { useSettingStore } from "@/stores/setting.ts";
-import { ShortcutKey } from "@/types/types.ts";
 import { isMobile } from "@/utils";
 
 export function useWindowClick(cb: (e: PointerEvent) => void) {

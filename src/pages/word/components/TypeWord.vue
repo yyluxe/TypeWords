@@ -652,14 +652,10 @@ useEvents([
     @apply text-lg w-12;
   }
 }
-    
-// 隐藏光标
-.cursor {
-  display: none !important;
-}
 
 // 移动端适配
 @media (max-width: 768px) {
+
   .typing-word {
     padding: 0 0.5rem 12rem;
     

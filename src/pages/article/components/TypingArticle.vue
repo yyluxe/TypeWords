@@ -1,24 +1,25 @@
 <script setup lang="ts">
-import {inject, onMounted, onUnmounted, watch} from "vue"
-import {Article, ArticleWord, PracticeArticleWordType, Sentence, ShortcutKey, Word} from "@/types/types.ts";
-import {useBaseStore} from "@/stores/base.ts";
-import {useSettingStore} from "@/stores/setting.ts";
-import {usePlayBeep, usePlayCorrect, usePlayKeyboardAudio} from "@/hooks/sound.ts";
-import {emitter, EventKey, useEvents} from "@/utils/eventBus.ts";
+import { inject, onMounted, onUnmounted, watch } from "vue"
+import { Article, ArticleWord, PracticeArticleWordType, Sentence, ShortcutKey, Word } from "@/types/types.ts";
+import { useBaseStore } from "@/stores/base.ts";
+import { useSettingStore } from "@/stores/setting.ts";
+import { usePlayBeep, usePlayCorrect, usePlayKeyboardAudio } from "@/hooks/sound.ts";
+import { emitter, EventKey, useEvents } from "@/utils/eventBus.ts";
 import { _dateFormat, _nextTick, isMobile, msToHourMinute, total } from "@/utils";
 import '@imengyu/vue3-context-menu/lib/vue3-context-menu.css'
 import ContextMenu from '@imengyu/vue3-context-menu'
 import BaseButton from "@/components/BaseButton.vue";
 import QuestionForm from "@/pages/article/components/QuestionForm.vue";
-import {getDefaultArticle, getDefaultWord} from "@/types/func.ts";
+import { getDefaultArticle, getDefaultWord } from "@/types/func.ts";
 import Toast from '@/components/base/toast/Toast.ts'
 import TypingWord from "@/pages/article/components/TypingWord.vue";
 import Space from "@/pages/article/components/Space.vue";
-import {useWordOptions} from "@/hooks/dict.ts";
+import { useWordOptions } from "@/hooks/dict.ts";
 import nlp from "compromise/three";
-import {nanoid} from "nanoid";
-import {usePracticeStore} from "@/stores/practice.ts";
-import {PracticeSaveArticleKey} from "@/config/env.ts";
+import { nanoid } from "nanoid";
+import { usePracticeStore } from "@/stores/practice.ts";
+import { PracticeSaveArticleKey } from "@/config/env.ts";
+import { retry } from "ali-oss/lib/common/utils/retry";
 
 interface IProps {
   article: Article,
@@ -150,6 +151,15 @@ function init() {
     })
     typeArticleRef?.scrollTo({top: 0, behavior: "smooth"})
   }
+  _nextTick(() => {
+    if (isNameWord()) {
+      next()
+    }
+    //如果是首句首词
+    if (sectionIndex === 0 && sentenceIndex === 0 && wordIndex === 0 && stringIndex === 0) {
+      emit('play', {sentence: props.article.sections[sectionIndex][sentenceIndex], handle: false})
+    }
+  })
   checkTranslateLocation().then(() => checkCursorPosition())
   focusMobileInput()
 }
@@ -222,8 +232,10 @@ function processMobileCharacter(char: string) {
   const fakeEvent = {
     key: char,
     code,
-    preventDefault() {},
-    stopPropagation() {},
+    preventDefault() {
+    },
+    stopPropagation() {
+    },
   } as unknown as KeyboardEvent
   onTyping(fakeEvent)
 }
@@ -245,6 +257,21 @@ function handleMobileBeforeInput(event: InputEvent) {
     event.preventDefault()
     del()
   }
+}
+
+
+const normalize = (s: string) => s.toLowerCase().trim()
+const namePatterns = $computed(() => {
+  return (props.article?.nameList ?? []).map(normalize).filter(Boolean).map(s => s.split(/\s+/).filter(Boolean)).flat().concat([
+    'Mr', 'Mrs', 'Ms', 'Dr', 'Miss',
+  ].map(normalize))
+})
+
+const isNameWord = () => {
+  let currentSection = props.article.sections[sectionIndex]
+  let currentSentence = currentSection[sentenceIndex]
+  let w: ArticleWord = currentSentence.words[wordIndex]
+  return w?.type === PracticeArticleWordType.Word && namePatterns.length > 0 && namePatterns.includes(normalize(w.word))
 }
 
 let isTyping = false
@@ -279,15 +306,48 @@ function nextSentence() {
       isEnd = true
       emit('complete')
     } else {
-      emit('play', {sentence: props.article.sections[sectionIndex][0], handle: false})
+      if (isNameWord()) {
+        next()
+      } else {
+        emit('play', {sentence: props.article.sections[sectionIndex][0], handle: false})
+      }
     }
   } else {
-    emit('play', {sentence: currentSection[sentenceIndex], handle: false})
+    if (isNameWord()) {
+      next()
+    } else {
+      emit('play', {sentence: currentSection[sentenceIndex], handle: false})
+    }
   }
   lock = false
   focusMobileInput()
 }
-  
+
+const next = () => {
+  isSpace = false;
+  input = wrong = ''
+  stringIndex = 0;
+
+  let currentSection = props.article.sections[sectionIndex]
+  let currentSentence = currentSection[sentenceIndex]
+  let currentWord: ArticleWord = currentSentence.words[wordIndex]
+
+  // 检查下一个单词是否存在
+  if (wordIndex + 1 < currentSentence.words.length) {
+    wordIndex++;
+    currentWord = currentSentence.words[wordIndex]
+    if ([PracticeArticleWordType.Symbol, PracticeArticleWordType.Number].includes(currentWord.type) && settingStore.ignoreSymbol) {
+      next()
+    } else if (isNameWord()) {
+      next()
+    } else {
+      emit('nextWord', currentWord);
+    }
+  } else {
+    nextSentence()
+  }
+}
+
 function onTyping(e: KeyboardEvent) {
   debugger
   if (!props.article.sections.length) return
@@ -299,33 +359,6 @@ function onTyping(e: KeyboardEvent) {
     let currentSentence = currentSection[sentenceIndex]
     let currentWord: ArticleWord = currentSentence.words[wordIndex]
     wrong = ''
-
-    const normalize = (s: string) => (settingStore.ignoreCase ? s.toLowerCase() : s).trim()
-    const nameList = (props.article?.nameList ?? []).map(normalize).filter(Boolean)
-    const isNameWord = (w: ArticleWord) => {
-      return w?.type === PracticeArticleWordType.Word && nameList.length > 0 && nameList.includes(normalize(w.word))
-    }
-
-    const next = () => {
-      isSpace = false;
-      input = wrong = ''
-      stringIndex = 0;
-      // 检查下一个单词是否存在
-      if (wordIndex + 1 < currentSentence.words.length) {
-        wordIndex++;
-        currentWord =  currentSentence.words[wordIndex]
-        if ([PracticeArticleWordType.Symbol,PracticeArticleWordType.Number].includes(currentWord.type) && settingStore.ignoreSymbol){
-          next()
-        } else if (isNameWord(currentWord)) {
-          isSpace = false
-          next()
-        } else {
-          emit('nextWord', currentWord);
-        }
-      } else {
-        nextSentence()
-      }
-    }
 
     if (isSpace) {
       if (e.code === 'Space') {
@@ -343,17 +376,13 @@ function onTyping(e: KeyboardEvent) {
         // }, 500)
       }
     } else {
-      //如果是首句首词
-      if (sectionIndex === 0 && sentenceIndex === 0 && wordIndex === 0 && stringIndex === 0) {
-        emit('play', {sentence: currentSection[sentenceIndex], handle: false})
-      }
-      if (isNameWord(currentWord)) {
-        isSpace = false
-        const savedTyping = isTyping
-        next()
-        isTyping = false
-        return onTyping(e)
-      }
+
+      // if (isNameWord(currentWord)) {
+      //   isSpace = false
+      //   next()
+      //   isTyping = false
+      //   return onTyping(e)
+      // }
       let letter = e.key
       let key = currentWord.word[stringIndex]
       // console.log('key', key,)
@@ -392,7 +421,7 @@ function onTyping(e: KeyboardEvent) {
     //todo 上报
     localStorage.removeItem(PracticeSaveArticleKey.key)
     init()
-  }finally {
+  } finally {
     isTyping = false
   }
 }
@@ -627,7 +656,10 @@ const currentPractice = inject('currentPractice', [])
         @input="handleMobileInput"
     />
     <header class="mb-4">
-      <div class="title word"><span class="font-family text-3xl">{{ store.sbook.lastLearnIndex + 1 }}.</span>{{ props.article.title }}</div>
+      <div class="title word"><span class="font-family text-3xl">{{
+          store.sbook.lastLearnIndex + 1
+        }}.</span>{{ props.article.title }}
+      </div>
       <div class="titleTranslate" v-if="settingStore.translate">{{ props.article.titleTranslate }}</div>
     </header>
 
@@ -897,7 +929,7 @@ $article-lh: 2.4;
     width: 100vw;
     max-width: 100%;
     padding: 1rem 0.5rem;
-    
+
     // 标题优化
     header {
       .title {
@@ -905,31 +937,31 @@ $article-lh: 2.4;
         line-height: 1.4;
         word-break: break-word;
         margin-bottom: 1rem;
-        
+
         .font-family {
           font-size: 1rem;
         }
       }
-      
+
       .titleTranslate {
         font-size: 0.9rem;
         margin-top: 0.5rem;
         opacity: 0.8;
       }
     }
-    
+
     // 句子显示优化
     .article-content {
       article {
         .section {
           margin-bottom: 1rem;
-          
+
           .sentence {
             font-size: 1rem;
             line-height: 1.6;
             word-break: break-word;
             margin-bottom: 0.5rem;
-            
+
             .word {
               .word-wrap {
                 padding: 0.1rem 0.05rem;
@@ -952,16 +984,16 @@ $article-lh: 2.4;
       font-family: var(--zh-article-family);
       word-break: break-word;
     }
-    
+
     // 翻译区域优化
     .translate {
       display: none;
     }
-    
+
     // 问答表单优化
     .question-form {
       padding: 0.5rem;
-      
+
       .base-button {
         width: 100%;
         min-height: 48px;
@@ -974,21 +1006,21 @@ $article-lh: 2.4;
 @media (max-width: 480px) {
   .typing-article {
     padding: 0.5rem 0.3rem;
-    
+
     header {
       .title {
         font-size: 1rem;
-        
+
         .font-family {
           font-size: 0.9rem;
         }
       }
-      
+
       .titleTranslate {
         font-size: 0.8rem;
       }
     }
-    
+
     .article-content {
       article {
         .section {
@@ -999,7 +1031,7 @@ $article-lh: 2.4;
         }
       }
     }
-    
+
     .sentence-translate-mobile {
       font-size: 0.85rem;
       line-height: 1.35;
