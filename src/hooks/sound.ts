@@ -1,8 +1,8 @@
-import { onMounted, watchEffect } from "vue"
-import { useSettingStore } from "@/stores/setting.ts";
-import { PronunciationApi } from "@/types/types.ts";
+import {onMounted, watchEffect} from "vue"
+import {useSettingStore} from "@/stores/setting.ts";
+import {PronunciationApi} from "@/types/types.ts";
 
-import { SoundFileOptions } from "@/config/env.ts";
+import {SoundFileOptions} from "@/config/env.ts";
 
 export function useSound(audioSrcList?: string[], audioFileLength?: number) {
   let audioList: HTMLAudioElement[] = $ref([])
@@ -98,6 +98,10 @@ export function usePlayWordAudio() {
     audio.volume = settingStore.wordSoundVolume / 100
     audio.playbackRate = settingStore.wordSoundSpeed
     audio.play()
+    audio.onerror = (e) => {
+      const ttsPlay = useTTsPlayAudio()
+      ttsPlay(word)
+    }
   }
 
   return playAudio
@@ -105,22 +109,27 @@ export function usePlayWordAudio() {
 
 export function useTTsPlayAudio() {
   let isPlay = $ref(false)
+  const settingStore = useSettingStore()
 
   function play(text: string) {
-    // if (isPlay) {
-    //   isPlay = false
-    //   return window.speechSynthesis.pause();
-    // }
+    if (isPlay) {
+      isPlay = false
+      window.speechSynthesis.pause();
+    }
     let msg = new SpeechSynthesisUtterance();
     msg.text = text
-    msg.rate = 1;
+    msg.rate = settingStore.wordSoundSpeed;
+    msg.volume = settingStore.wordSoundVolume / 100
     msg.pitch = 1;
-    // msg.lang = 'en-US';
-    msg.lang = 'zh-CN';
+    msg.lang = 'en-US';
+    const voices = speechSynthesis.getVoices();
+    let r = voices.find(v => v.name.includes("Female") || v.lang === "en-US");
+    if (r) {
+      msg.voice = r
+    }
     isPlay = true
     window.speechSynthesis.speak(msg);
     console.log('text', text)
-
   }
 
   return play

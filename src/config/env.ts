@@ -19,7 +19,7 @@ export const ENV = Object.assign(map['DEV'], common)
 
 export let AppEnv = {
   TOKEN: localStorage.getItem('token') ?? '',
-  IS_OFFICIAL: true,
+  IS_OFFICIAL: false,
   IS_LOGIN: false,
   CAN_REQUEST: false
 }

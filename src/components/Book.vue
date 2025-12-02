@@ -52,6 +52,7 @@ const studyProgress = $computed(() => {
                 @change="$emit('check')"
                 class="absolute left-3 bottom-3"/>
       <div class="custom" v-if="item.custom">自定义</div>
+      <div class="custom bg-red! color-white" v-if="item.update">更新中</div>
     </template>
     <div v-else class="center h-full text-2xl">
       <IconFluentAdd16Regular/>

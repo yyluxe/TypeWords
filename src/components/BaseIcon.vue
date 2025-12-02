@@ -42,6 +42,7 @@ $w: 1.4rem;
 
   &:hover:not(.disabled,.noBg) {
     background: var(--color-icon-hightlight);
+    color: white;
 
     :deep(svg) {
       color: white;

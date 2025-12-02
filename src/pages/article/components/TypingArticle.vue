@@ -1,24 +1,24 @@
 <script setup lang="ts">
-import { inject, onMounted, onUnmounted, watch } from "vue"
-import { Article, ArticleWord, PracticeArticleWordType, Sentence, ShortcutKey, Word } from "@/types/types.ts";
-import { useBaseStore } from "@/stores/base.ts";
-import { useSettingStore } from "@/stores/setting.ts";
-import { usePlayBeep, usePlayKeyboardAudio, usePlayWordAudio } from "@/hooks/sound.ts";
-import { emitter, EventKey, useEvents } from "@/utils/eventBus.ts";
-import { _dateFormat, _nextTick, isMobile, msToHourMinute, total } from "@/utils";
+import {inject, onMounted, onUnmounted, watch} from "vue"
+import {Article, ArticleWord, PracticeArticleWordType, Sentence, ShortcutKey, Word} from "@/types/types.ts";
+import {useBaseStore} from "@/stores/base.ts";
+import {useSettingStore} from "@/stores/setting.ts";
+import {usePlayBeep, usePlayKeyboardAudio, usePlayWordAudio} from "@/hooks/sound.ts";
+import {emitter, EventKey, useEvents} from "@/utils/eventBus.ts";
+import {_dateFormat, _nextTick, isMobile, msToHourMinute, total} from "@/utils";
 import '@imengyu/vue3-context-menu/lib/vue3-context-menu.css'
 import ContextMenu from '@imengyu/vue3-context-menu'
 import BaseButton from "@/components/BaseButton.vue";
 import QuestionForm from "@/pages/article/components/QuestionForm.vue";
-import { getDefaultArticle, getDefaultWord } from "@/types/func.ts";
+import {getDefaultArticle, getDefaultWord} from "@/types/func.ts";
 import Toast from '@/components/base/toast/Toast.ts'
 import TypingWord from "@/pages/article/components/TypingWord.vue";
 import Space from "@/pages/article/components/Space.vue";
-import { useWordOptions } from "@/hooks/dict.ts";
+import {useWordOptions} from "@/hooks/dict.ts";
 import nlp from "compromise/three";
-import { nanoid } from "nanoid";
-import { usePracticeStore } from "@/stores/practice.ts";
-import { PracticeSaveArticleKey } from "@/config/env.ts";
+import {nanoid} from "nanoid";
+import {usePracticeStore} from "@/stores/practice.ts";
+import {PracticeSaveArticleKey} from "@/config/env.ts";
 
 interface IProps {
   article: Article,
@@ -655,11 +655,13 @@ const currentPractice = inject('currentPractice', [])
       <div class="titleTranslate" v-if="settingStore.translate">{{ props.article.titleTranslate }}</div>
     </header>
 
-    <div id="article-content" class="article-content" ref="articleWrapperRef">
-      <article :class="[
+    <div id="article-content" class="article-content"
+         :class="[
           settingStore.translate && 'tall',
           settingStore.dictation && 'dictation',
-      ]">
+      ]"
+         ref="articleWrapperRef">
+      <article>
         <div class="section" v-for="(section,indexI) in props.article.sections">
                 <span class="sentence"
                       v-for="(sentence,indexJ) in section">
@@ -819,17 +821,26 @@ $article-lh: 2.4;
     position: relative;
   }
 
+  .dictation {
+    .border-bottom {
+      display: inline-block !important;
+    }
+    .translate{
+      color:black;
+    }
+  }
+
+  .tall {
+    article {
+      line-height: $article-lh;
+    }
+  }
+
   article {
     word-break: keep-all;
     word-wrap: break-word;
     white-space: pre-wrap;
     font-family: var(--en-article-family);
-
-    &.dictation {
-      .border-bottom {
-        display: inline-block !important;
-      }
-    }
 
     .wrote, .hover-show {
       :deep(.hide) {
@@ -849,10 +860,6 @@ $article-lh: 2.4;
       :deep(.hide) {
         opacity: 1 !important;
       }
-    }
-
-    &.tall {
-      line-height: $article-lh;
     }
 
     .section {
@@ -896,6 +903,7 @@ $article-lh: 2.4;
     letter-spacing: .2rem;
     font-family: var(--zh-article-family);
     font-weight: bold;
+    color: #818181;
 
     .row {
       position: absolute;
